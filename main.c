@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 #include "lodepng.h" 
 
 // принимаем на вход: имя файла, указатели на int для хранения прочитанной ширины и высоты картинки
