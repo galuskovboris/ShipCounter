@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
-#include "lodepng.h" 
+#include "lodepng.h"
 
 // принимаем на вход: имя файла, указатели на int для хранения прочитанной ширины и высоты картинки
 // возвращаем указатель на выделенную память для хранения картинки
@@ -33,7 +33,7 @@ void write_png(const char* filename, const unsigned char* image, unsigned width,
 }
 
 
-// вариант огрубления серого цвета в ЧБ 
+// контрастирование
 void contrast(unsigned char *col, int bw_size)
 {
     int i;
@@ -84,7 +84,50 @@ void Gauss_blur(unsigned char *col, unsigned char *blr_pic, int width, int heigh
     }
 
     return;
-} 
+}
+// проверка на белый цвет
+int is_white(unsigned char *binary, int width, int height, int x, int y)
+{
+    if(x < 0 || x >= width || y < 0 || y >= height) return 0;
+    int idx = y * width + x;
+    return (binary[idx] == 255);
+}
+
+typedef struct {
+    int *row_ptr;      // указатели на начало строк
+    int *col_idx;      // индексы столбцов (соседей)
+    int nnz;           // количество ненулевых элементов
+} CSRGraph;
+
+// Структура для компоненты связности (корабля)
+typedef struct {
+    int *nodes;        // индексы пикселей в компоненте
+    int size;          // количество пикселей
+} Component;
+
+// Построение графа
+CSRGraph* build_graph(unsigned char *binary, int width, int height) {
+    int total_pixels = width * height;
+    int *degrees = (int*)calloc(total_pixels, sizeof(int));
+
+    // степень каждого узла
+    for(int y = 0; y < height; y++) {
+        for(int x = 0; x < width; x++) {
+            int idx = y * width + x;
+            if(!is_white(binary, width, height, x, y)) continue;
+
+            // проверяем 8 соседей
+            for(int dy = -1; dy <= 1; dy++) {
+                for(int dx = -1; dx <= 1; dx++) {
+                    if(dx == 0 && dy == 0) continue;
+                    if(is_white(binary, width, height, x + dx, y + dy)) {
+                        degrees[idx]++;
+                    }
+                }
+            }
+        }
+    } // НЕ ЗАВЕРШЕНО
+}
 
 //  Место для экспериментов
 void color(unsigned char *blr_pic, unsigned char *res, int size)
