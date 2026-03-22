@@ -35,8 +35,8 @@ void write_png(const char* filename, const unsigned char* image, unsigned width,
 
 // вариант огрубления серого цвета в ЧБ 
 void contrast(unsigned char *col, int bw_size)
-{ 
-    int i; 
+{
+    int i;
     for(i=0; i < bw_size; i++)
     {
         if(col[i] < 55)
@@ -49,17 +49,41 @@ void contrast(unsigned char *col, int bw_size)
 
 // Гауссово размытие
 void Gauss_blur(unsigned char *col, unsigned char *blr_pic, int width, int height)
-{ 
-    int i, j; 
-    for(i=1; i < height-1; i++) 
-        for(j=1; j < width-1; j++)
-        { 
-            blr_pic[width*i+j] = 0.084*col[width*i+j] + 0.084*col[width*(i+1)+j] + 0.084*col[width*(i-1)+j]; 
-            blr_pic[width*i+j] = blr_pic[width*i+j] + 0.084*col[width*i+(j+1)] + 0.084*col[width*i+(j-1)]; 
-            blr_pic[width*i+j] = blr_pic[width*i+j] + 0.063*col[width*(i+1)+(j+1)] + 0.063*col[width*(i+1)+(j-1)]; 
-            blr_pic[width*i+j] = blr_pic[width*i+j] + 0.063*col[width*(i-1)+(j+1)] + 0.063*col[width*(i-1)+(j-1)]; 
-        } 
-   return; 
+{
+    int i, j;
+    for(i = 1; i < height - 1; i++)
+        for(j = 1; j < width - 1; j++)
+        {
+            int sum = 0;
+
+            sum += col[width*(i-1) + (j-1)] * 1;
+            sum += col[width*(i-1) + j]     * 2;   // верхняя строка
+            sum += col[width*(i-1) + (j+1)] * 1;
+
+            sum += col[width*i + (j-1)] * 2;
+            sum += col[width*i + j]     * 4;       // средняя строка
+            sum += col[width*i + (j+1)] * 2;
+
+            sum += col[width*(i+1) + (j-1)] * 1;
+            sum += col[width*(i+1) + j]     * 2;   // нижнняя строка
+            sum += col[width*(i+1) + (j+1)] * 1;
+
+            blr_pic[width*i + j] = sum / 16;
+        }
+
+    for(i = 0; i < height; i++)
+    {
+        blr_pic[width*i + 0] = col[width*i + 0];
+        blr_pic[width*i + (width-1)] = col[width*i + (width-1)];
+    }
+
+    for(j = 0; j < width; j++)
+    {
+        blr_pic[0*width + j] = col[0*width + j];
+        blr_pic[(height-1)*width + j] = col[(height-1)*width + j];
+    }
+
+    return;
 } 
 
 //  Место для экспериментов
