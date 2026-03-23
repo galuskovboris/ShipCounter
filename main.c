@@ -126,7 +126,105 @@ CSRGraph* build_graph(unsigned char *binary, int width, int height) {
                 }
             }
         }
-    } // НЕ ЗАВЕРШЕНО
+    }
+    CSRGraph *graph = (CSRGraph*)malloc(sizeof(CSRGraph));
+
+    graph->row_ptr = (int*)malloc((total_pixels + 1) * sizeof(int));
+    graph->row_ptr[0] = 0;
+    for(int i = 0; i < total_pixels; i++) {
+        graph->row_ptr[i + 1] = graph->row_ptr[i] + degrees[i];
+    }
+
+    graph->nnz = graph->row_ptr[total_pixels];
+    graph->col_idx = (int*)malloc(graph->nnz * sizeof(int));
+
+    int *current_pos = (int*)calloc(total_pixels, sizeof(int));
+    for(int y = 0; y < height; y++) {
+        for(int x = 0; x < width; x++) {
+            int idx = y * width + x;
+            if(!is_white(binary, width, height, x, y)) continue;
+
+            int pos = graph->row_ptr[idx] + current_pos[idx];
+
+            for(int dy = -1; dy <= 1; dy++) {
+                for(int dx = -1; dx <= 1; dx++) {
+                    if(dx == 0 && dy == 0) continue;
+                    int nx = x + dx;
+                    int ny = y + dy;
+                    if(is_white(binary, width, height, nx, ny)) {
+                        int nidx = ny * width + nx;
+                        graph->col_idx[pos++] = nidx;
+                    }
+                }
+            }
+            current_pos[idx] += degrees[idx];
+        }
+    }
+
+    free(degrees);
+    free(current_pos);
+
+    return graph;
+}
+
+// Освобождение графа
+void free_graph(CSRGraph *graph)
+{
+    if(graph) {
+        free(graph->row_ptr);
+        free(graph->col_idx);
+        free(graph);
+    }
+}
+
+// Поиск компонент связности
+Component* find_components(CSRGraph *graph, int total_pixels, int *comp_count)
+{
+    int *visited = (int*)calloc(total_pixels, sizeof(int));
+    Component *components = (Component*)malloc(total_pixels * sizeof(Component));
+    int comp_idx = 0;
+
+    // Стек для DFS
+    int *stack = (int*)malloc(total_pixels * sizeof(int));
+
+    for(int i = 0; i < total_pixels; i++) {
+        if(visited[i] || graph->row_ptr[i] == graph->row_ptr[i + 1]) {
+            continue;
+        }
+
+        int stack_top = 0;
+        stack[stack_top++] = i;
+        visited[i] = 1;
+
+        int *comp_nodes = (int*)malloc(total_pixels * sizeof(int));
+        int node_count = 0;
+
+        while(stack_top > 0) {
+            int node = stack[--stack_top];
+            comp_nodes[node_count++] = node;
+
+            for(int j = graph->row_ptr[node]; j < graph->row_ptr[node + 1]; j++) {
+                int neighbor = graph->col_idx[j];
+                if(!visited[neighbor]) {
+                    visited[neighbor] = 1;
+                    stack[stack_top++] = neighbor;
+                }
+            }
+        }
+
+        components[comp_idx].nodes = (int*)malloc(node_count * sizeof(int));
+        memcpy(components[comp_idx].nodes, comp_nodes, node_count * sizeof(int));
+        components[comp_idx].size = node_count;
+        comp_idx++;
+
+        free(comp_nodes);
+    }
+
+    *comp_count = comp_idx;
+    free(visited);
+    free(stack);
+
+    return components;
 }
 
 //  Место для экспериментов
@@ -151,7 +249,7 @@ int main()
     int bw_size;
     
     // Прочитали картинку
-    unsigned char* picture = load_png("skull.png", &width, &height); 
+    unsigned char* picture = load_png("skull.png", &width, &height);
     if (picture == NULL)
     { 
         printf("Problem reading picture from the file %s. Error.\n", filename); 
